@@ -23,7 +23,7 @@ class Wave2D:
         #D[0, :4] = 2, -5, 4, -1
         #D[-1, -4:] = -1, 4, -5, 2
         D[0] = 0 #why are these 0? who knows. but I isolated error to here and was testing out.
-        D[-1] = 0
+        D[-1] = 0 #test_exact_wave2d is the one that failed without this
         return D
 
     @property
@@ -48,14 +48,11 @@ class Wave2D:
         mx, my : int
             Parameters for the standing wave
         """
-
         D = self.D2(N) / self.h ** 2
-
         U0 = sp.lambdify((x, y, t), self.ue(mx, my)) (self.xij, self.yij, 0)
         U1 = U0[:] + 0.5*(self.c*self.dt)**2*(D @ U0 + U0 @ D.T)
 
         return U0, U1
-
 
     @property
     def dt(self):
@@ -180,9 +177,6 @@ class Wave2D:
         r = [np.log(E[i-1]/E[i])/np.log(h[i-1]/h[i]) for i in range(1, m+1, 1)]
         return r, np.array(E), np.array(h)
 
-
-
-
 class Wave2D_Neumann(Wave2D):
     def D2(self, N):
         D = sparse.diags([1, -2, 1], [-1, 0, 1], (self.N + 1, self.N + 1), 'lil')
@@ -197,8 +191,6 @@ class Wave2D_Neumann(Wave2D):
     def apply_bcs(self):
         #?
         pass
-
-
 
 def test_convergence_wave2d():
     sol = Wave2D()
@@ -217,34 +209,26 @@ def test_exact_wave2d():
     h, l2 = sol(10, 10, mx=3, my=3, cfl=1/np.sqrt(2), store_data=-1)
     assert l2 < 10**(-12)
 
-    print("1/2 wave2d")
     sol = Wave2D_Neumann()
     h, l2 = sol(10, 10, mx=3, my=3, cfl=1 / np.sqrt(2), store_data=-1)
     assert l2 < 10 ** (-12)
 
 if __name__ == "__main__":
     test_convergence_wave2d()
-    print("convergence")
     test_convergence_wave2d_neumann()
-    print("convergence neumann")
     test_exact_wave2d()
-    print("exact_wave2d")
     wave = Wave2D()
-    data = wave(10, 10, store_data=1)
-
-    print("let's animate")
+    data = wave(75, 30, store_data=1)
 
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
     frames = []
     for n, val in data.items():
-        frame = ax.plot_wireframe(wave.xij, wave.yij, val, rstride=2, cstride=2);
-        # frame = ax.plot_surface(xij, yij, val, vmin=-0.5*data[0].max(),
-        #                        vmax=data[0].max(), cmap=cm.coolwarm,
-        #                        linewidth=0, antialiased=False)
+        #frame = ax.plot_wireframe(wave.xij, wave.yij, val, rstride=2, cstride=2);
+        frame = ax.plot_surface(wave.xij, wave.yij, val, vmin=-0.5*data[0].max(),
+                               vmax=data[0].max(), cmap=cm.viridis,
+                               linewidth=0, antialiased=False)
         frames.append([frame])
 
     ani = animation.ArtistAnimation(fig, frames, interval=400, blit=True,
                                     repeat_delay=1000)
     ani.save('neumannwave.gif', writer='pillow', fps=5)
-
-    print("done")
