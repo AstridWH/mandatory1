@@ -3,6 +3,7 @@ import sympy as sp
 import scipy.sparse as sparse
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import matplotlib.animation as animation
 
 x, y, t = sp.symbols('x,y,t')
 
@@ -48,8 +49,8 @@ class Wave2D:
 
         D = self.D2(N) / self.h ** 2
 
-        U0 = sp.lambdify((x, y, t), self.ue(mx, my), (self.xij, self.yij, 0))
-        U1[:] = U0[:] + 0.5*(self.c*self.dt)**2*(D @ U0 + U0 @ D.T)
+        U0 = sp.lambdify((x, y, t), self.ue(mx, my)) (self.xij, self.yij, 0)
+        U1 = U0[:] + 0.5*(self.c*self.dt)**2*(D @ U0 + U0 @ D.T)
 
         return U0, U1
 
@@ -133,8 +134,14 @@ class Wave2D:
             Un[:] = Unp1
             if n % store_data == 0:
                 plotdata[n] = Unm1.copy()  # Unm1 is now swapped to Un
-        return xij, yij, plotdata
 
+        if store_data > 0:
+            return plotdata
+        elif store_data == -1:
+            type(self.h)
+            l2 = self.l2_error(Un, Nt * self.dt)
+            type(l2)
+            return self.h, l2
 
     def convergence_rates(self, m=4, cfl=0.1, Nt=10, mx=3, my=3):
         """Compute convergence rates for a range of discretizations
@@ -162,7 +169,7 @@ class Wave2D:
         N0 = 8
         for m in range(m):
             dx, err = self(N0, Nt, cfl=cfl, mx=mx, my=my, store_data=-1)
-            E.append(err[-1])
+            E.append(err)
             h.append(dx)
             N0 *= 2
             Nt *= 2
@@ -173,11 +180,10 @@ class Wave2D:
 
 
 class Wave2D_Neumann(Wave2D):
-
     def D2(self, N):
         D = sparse.diags([1, -2, 1], [-1, 0, 1], (self.N + 1, self.N + 1), 'lil')
-        D[0, :2] = 2, -2 #unsure on these, tried to math it but made little sense
-        D[-1, -2:] = -2, 2
+        D[0, :2] = -2, 2 #unsure on these, tried to math it but made little sense
+        D[-1, -2:] = 2, -2
         return D
 
     def ue(self, mx, my):
@@ -204,20 +210,40 @@ def test_convergence_wave2d_neumann():
 
 def test_exact_wave2d():
     sol = Wave2D()
-    U = sol(mx=3, my=3, cfl=1/np.sqrt(2))
-    u = sol.ue()
+    U = sol(100, 100, mx=3, my=3, cfl=1/np.sqrt(2))
+    u = sol.ue(3, 3)
     l2 = sol.l2_error(u, 0)
     assert l2 < 10**(-12)
 
     sol = Wave2D_Neumann()
-    U = sol(mx=3, my=3, cfl=1 / np.sqrt(2))
-    u = sol.ue()
+    U = sol(100, 100, mx=3, my=3, cfl=1 / np.sqrt(2))
+    u = sol.ue(3, 3)
     l2 = sol.l2_error(u, 0)
     assert l2 < 10 ** (-12)
 
 if __name__ == "__main__":
-    wave = Wave2D()
-    #U = wave(100, 100)
-    #test_convergence_wave2d()
-    #test_convergence_wave2d_neumann()
+    test_convergence_wave2d()
+    print("convergence")
+    test_convergence_wave2d_neumann()
+    print("convergence neumann")
     test_exact_wave2d()
+    print("exact_wave2d")
+    wave = Wave2D()
+    data = wave(100, 100)
+
+    print("let's animate")
+    
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    frames = []
+    for n, val in data.items():
+        frame = ax.plot_wireframe(wave.xij, wave.yij, val, rstride=2, cstride=2);
+        # frame = ax.plot_surface(xij, yij, val, vmin=-0.5*data[0].max(),
+        #                        vmax=data[0].max(), cmap=cm.coolwarm,
+        #                        linewidth=0, antialiased=False)
+        frames.append([frame])
+
+    ani = animation.ArtistAnimation(fig, frames, interval=400, blit=True,
+                                    repeat_delay=1000)
+    ani.save('neumannwave.gif', writer='pillow', fps=5)
+
+    print("done")
