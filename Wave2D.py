@@ -20,8 +20,10 @@ class Wave2D:
     def D2(self, N):
         """Return second order differentiation matrix"""
         D = sparse.diags([1, -2, 1], [-1, 0, 1], (self.N + 1, self.N + 1), 'lil')
-        D[0, :4] = 2, -5, 4, -1
-        D[-1, -4:] = -1, 4, -5, 2
+        #D[0, :4] = 2, -5, 4, -1
+        #D[-1, -4:] = -1, 4, -5, 2
+        D[0] = 0 #why are these 0? who knows. but I isolated error to here and was testing out.
+        D[-1] = 0
         return D
 
     @property
@@ -73,7 +75,9 @@ class Wave2D:
         """
         ue = sp.lambdify((x, y, t), self.ue(self.mx, self.my))(self.xij, self.yij, t0)
         um = u - ue
-        l2 = np.sqrt(np.sum((um) ** 2) * self.h ** 2)
+        l2 = np.sum((um) ** 2) * self.h ** 2
+        #print(type(l2))
+        l2 = np.sqrt(l2)
         return l2
 
     def apply_bcs(self):
@@ -210,15 +214,12 @@ def test_convergence_wave2d_neumann():
 
 def test_exact_wave2d():
     sol = Wave2D()
-    U = sol(100, 100, mx=3, my=3, cfl=1/np.sqrt(2))
-    u = sol.ue(3, 3)
-    l2 = sol.l2_error(u, 0)
+    h, l2 = sol(10, 10, mx=3, my=3, cfl=1/np.sqrt(2), store_data=-1)
     assert l2 < 10**(-12)
 
+    print("1/2 wave2d")
     sol = Wave2D_Neumann()
-    U = sol(100, 100, mx=3, my=3, cfl=1 / np.sqrt(2))
-    u = sol.ue(3, 3)
-    l2 = sol.l2_error(u, 0)
+    h, l2 = sol(10, 10, mx=3, my=3, cfl=1 / np.sqrt(2), store_data=-1)
     assert l2 < 10 ** (-12)
 
 if __name__ == "__main__":
@@ -229,10 +230,10 @@ if __name__ == "__main__":
     test_exact_wave2d()
     print("exact_wave2d")
     wave = Wave2D()
-    data = wave(100, 100)
+    data = wave(10, 10, store_data=1)
 
     print("let's animate")
-    
+
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
     frames = []
     for n, val in data.items():
