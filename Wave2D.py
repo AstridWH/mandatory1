@@ -81,8 +81,6 @@ class Wave2D:
         self.Unp1[:, -1] = 0
         self.Unp1[:, 0] = 0
 
-
-
     def __call__(self, N, Nt, cfl=0.5, c=1.0, mx=3, my=3, store_data=-1):
         """Solve the wave equation
 
@@ -174,19 +172,22 @@ class Wave2D:
 
 
 
-"""
 class Wave2D_Neumann(Wave2D):
 
     def D2(self, N):
-        raise NotImplementedError
+        D = sparse.diags([1, -2, 1], [-1, 0, 1], (self.N + 1, self.N + 1), 'lil')
+        D[0, :2] = 2, -2 #unsure on these, tried to math it but made little sense
+        D[-1, -2:] = -2, 2
+        return D
 
     def ue(self, mx, my):
-        raise NotImplementedError
+        ue = sp.cos(mx*sp.pi*x)*sp.cos(my*sp.pi*y)*sp.cos(self.w*t)
+        return ue
 
     def apply_bcs(self):
-        raise NotImplementedError
-        
-"""
+        #?
+        pass
+
 
 
 def test_convergence_wave2d():
@@ -194,17 +195,29 @@ def test_convergence_wave2d():
     r, E, h = sol.convergence_rates(mx=2, my=3)
     assert abs(r[-1]-2) < 1e-2
 
-"""
+
 def test_convergence_wave2d_neumann():
     solN = Wave2D_Neumann()
     r, E, h = solN.convergence_rates(mx=2, my=3)
     assert abs(r[-1]-2) < 0.05
 
+
 def test_exact_wave2d():
-    raise NotImplementedError
-"""
+    sol = Wave2D()
+    U = sol(mx=3, my=3, cfl=1/np.sqrt(2))
+    u = sol.ue()
+    l2 = sol.l2_error(u, 0)
+    assert l2 < 10**(-12)
+
+    sol = Wave2D_Neumann()
+    U = sol(mx=3, my=3, cfl=1 / np.sqrt(2))
+    u = sol.ue()
+    l2 = sol.l2_error(u, 0)
+    assert l2 < 10 ** (-12)
 
 if __name__ == "__main__":
     wave = Wave2D()
-    U = wave(100, 100)
-    test_convergence_wave2d()
+    #U = wave(100, 100)
+    #test_convergence_wave2d()
+    #test_convergence_wave2d_neumann()
+    test_exact_wave2d()
